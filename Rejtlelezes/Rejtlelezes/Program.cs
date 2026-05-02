@@ -6,9 +6,8 @@ namespace Rejtlelezes
     {
         static Dictionary<char, int> code = new Dictionary<char, int>();
         static string abc = "abcdefghijklmnopqrstuvwxyz ";
-
-
-        static Dictionary<string,string> encryptedMessages = new Dictionary<string, string>();
+        static HashSet<string> words = new HashSet<string>();
+        static List<string> words_backwards= new List<string>();
         static void dataUpload()
         {
             StreamReader sr = new StreamReader("data.txt");
@@ -18,6 +17,16 @@ namespace Rejtlelezes
                 code.Add(char.Parse(sr.ReadLine()),counter);
                 counter++;
             }
+        }
+
+        static void wordsUpload()
+        {
+            StreamReader sr = new StreamReader("words.txt");
+            while (!sr.EndOfStream)
+            {
+                words.Add(sr.ReadLine().Trim().ToLower());
+            }
+            words_backwards = words.OrderByDescending(x => x.Length).ToList();
         }
 
         static string Encrypt(string message, string key)
@@ -38,42 +47,121 @@ namespace Rejtlelezes
         {
             string decryptedMessage = "";
             int currentNumber = 0;
-
-            for (int i = 0; i < message.Length; i++)
+            if (key.Length >= message.Length)
             {
-                currentNumber = (code.GetValueOrDefault(message[i]) - code.GetValueOrDefault(key[i])+27)%27;
-                decryptedMessage += abc[currentNumber];
+                    for (int i = 0; i < message.Length; i++)
+                {
+                    currentNumber = (code.GetValueOrDefault(message[i]) - code.GetValueOrDefault(key[i])+27)%27;
+                    decryptedMessage += abc[currentNumber];
+                }
             }
+            
                 
             return decryptedMessage;
         }
 
+        static string KeyBroker(string message, string encrypted)
+        {
+            string key = "";
+            int currentNumber = 0;
+
+            for (int i = 0; i < message.Length; i++)
+            {
+                currentNumber = (code.GetValueOrDefault(encrypted[i]) - code.GetValueOrDefault(message[i]) + 27) % 27;
+                key += abc[currentNumber];
+            }
+
+            return key;
+        }
+
+        static string Solver(string e1, string e2, int index, string fullKey)
+        {
+            if (index == e1.Length)
+            {
+                return fullKey;
+            }
+
+            foreach (var item in words_backwards)
+            {
+                string currentWord = item;
+                if (index + currentWord.Length > e1.Length)
+                {
+                    continue;
+                }
+                if (index + currentWord.Length < e1.Length)
+                {
+                    currentWord += " ";
+                }
+
+                string part_e1 = e1.Substring(index, currentWord.Length);
+                string possibleKey = KeyBroker(currentWord, part_e1);
+                string part_e2 = e2.Substring(index, currentWord.Length);
+                string possible_m2 = Decrypt(e2.Substring(0, index + currentWord.Length), fullKey + possibleKey);
+
+                if (IsMessageValid(possible_m2, e2.Length))
+                {
+                    string result = Solver(e1, e2, index + currentWord.Length, fullKey + possibleKey);
+                    if (result != null)
+                    {
+                        return result;
+                    }
+                }
+            }
+            return null;
+        }
+        static bool IsMessageValid(string message, int length)
+        {
+            string[] wrds = message.Split(' ');
+
+            for (int i = 0; i < wrds.Length; i++)
+            {
+                string wrd = wrds[i];
+                if (string.IsNullOrEmpty(wrd))
+                {
+                    continue;
+                }
+
+                if (i < wrds.Length - 1 || message.Length == length)
+                {
+                    if (!words.Contains(wrd))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (!words.Any(x => x.StartsWith(wrd)))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
 
         static void Main(string[] args)
         {
             dataUpload();
-
-            //string message = "almaz"; -> 0 11 12 0 25
-            //string key = "fgdsn"; -> 5 6 3 18 13
-            // 5 17 15 18 38%27-> 11
-            //string encrypted = "frpsl";
-
-            while (true)
+            wordsUpload();
+            string m1 = "curiosity killed the cat";
+            string m2 = "early bird catches the worm";
+            int diff = Math.Abs(m1.Length - m2.Length);
+            string key = "";
+            for (int i = -diff; i < m1.Length; i++)
             {
-                Console.WriteLine("Irj egy uzenetet: ");
-                string message = Console.ReadLine().ToLower();
-                Console.WriteLine("Ird be a kulcsot: ");
-                string key = Console.ReadLine().ToLower();
-                encryptedMessages.Add(key, Encrypt(message, key));
-                Console.WriteLine(Encrypt(message,key));
-                string dmessage = Encrypt(message, key);
-                Console.WriteLine("Ird be a megoldo kulcsot: ");
-                string dkey = Console.ReadLine().ToLower();
-                Console.WriteLine(Decrypt(dmessage,dkey));
+                Random rnd=new Random();
+                int num =rnd.Next(0,27);
+                key += abc[num];
             }
-
-            
-
+            string e1 = Encrypt(m1, key);
+            string e2 = Encrypt(m2,key);
+            Console.WriteLine(e1);
+            Console.WriteLine(e2);
+            Console.WriteLine(Decrypt(e1,key));
+            Console.WriteLine(Decrypt(e2, key));
+            string foundKey = Solver(e1, e2, 0, "");
+            Console.WriteLine(foundKey);
+            Console.ReadKey();
         }
     }
 }
