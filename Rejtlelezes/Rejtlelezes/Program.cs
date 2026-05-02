@@ -161,6 +161,7 @@ namespace Rejtlelezes
             Console.WriteLine(Decrypt(e2, key));
             string foundKey = Solver(e1, e2, 0, "");
             Console.WriteLine(foundKey);
+
             Console.ReadKey();
         }
     }
